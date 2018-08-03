@@ -1,5 +1,8 @@
 import jump from 'jump.js'
-import { debounce } from './utils/func'
+import {
+  debounce,
+  rateLimit,
+} from './utils/func'
 import { getBestAnchorGivenScrollLocation, getScrollTop } from './utils/scroll'
 import { getHash, updateHash, removeHash } from './utils/hash'
 
@@ -14,8 +17,9 @@ class Manager {
     this.anchors = {}
     this.forcedHash = false
     this.config = defaultConfig
+    this.scrollLock = false
 
-    this.scrollHandler = debounce(this.handleScroll, 100)
+    this.scrollHandler = rateLimit(this.handleScroll, 200);
     this.forceHashUpdate = debounce(this.handleHashChange, 1)
   }
 
@@ -63,6 +67,10 @@ class Manager {
   }
 
   handleScroll = () => {
+    if (this.scrollLock) {
+      return;
+    }
+
     const {offset, keepLastAnchorHash} = this.config
     const bestAnchorId = getBestAnchorGivenScrollLocation(this.anchors, offset)
     if (bestAnchorId && getHash() !== bestAnchorId) {
@@ -87,10 +95,15 @@ class Manager {
 
   goToSection = (id) => {
     let element = this.anchors[id] && this.anchors[id].component
+    this.scrollLock = true;
     if (element) {
       jump(element, {
         duration: this.config.scrollDuration,
         offset: this.config.offset,
+        callback: () => {
+          this.scrollLock = false;
+          this.handleScroll();
+        },
       })
     } else {
       // make sure that standard hash anchors don't break.
@@ -100,7 +113,14 @@ class Manager {
         jump(element, {
           duration: 0,
           offset: this.config.offset,
+          callback: () => {
+            this.scrollLock = false;
+            this.handleScroll();
+          },
         })
+      } else {
+        this.scrollLock = false;
+        this.handleScroll();
       }
     }
   }
