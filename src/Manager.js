@@ -77,6 +77,7 @@ class Manager {
       this.forcedHash = true
       if (this.anchors[bestAnchorId].customHashUpdater) {
         this.anchors[bestAnchorId].customHashUpdater(bestAnchorId)
+        this.forcedHash = false
       } else {
         updateHash(bestAnchorId, false)
       }
